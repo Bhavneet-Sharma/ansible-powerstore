@@ -907,7 +907,7 @@ class PowerStoreNfsExport(object):
                     host = host.strip()
                     if regex.match(host) is None:
                         error_msg = f"Invalid host '{host}'. "\
-                          "Allowed characters: a-z, A-Z, 0-9, _, /, ., -, :, @"
+                            "Allowed characters: a-z, A-Z, 0-9, _, /, ., -, :, @"
                         self.module.fail_json(msg=error_msg)
 
         if self.module.params['host_state'] and all(
