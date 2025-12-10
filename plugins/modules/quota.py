@@ -253,11 +253,11 @@ quota_details:
                 nas_server:
                     description: nas_server of filesystem.
                     type: dict
-        hard_limit(cap_unit):
+        hard_limit_cap_unit:
             description: Value of the Hard Limit imposed on the quota.
             type: int
             sample: "4.0"
-        soft_limit(cap_unit):
+        soft_limit_cap_unit:
             description: Value of the Soft Limit imposed on the quota.
             type: int
             sample: "2.0"
@@ -300,7 +300,7 @@ quota_details:
                     description: Description of Tree Quota for user quota.
                     type: str
                     sample: "Primary"
-                hard_limit(cap_unit):
+                hard_limit_cap_unit:
                     description: Value of the Hard Limit imposed on the quota.
                     type: int
                     sample: "2.0"
@@ -336,13 +336,13 @@ quota_details:
                 "name": "ansible_nas_server_2"
             }
         },
-        "hard_limit(GB)": "90.0",
+        "hard_limit_GB": "90.0",
         "id": "00000006-08f2-0000-0200-000000000000",
         "is_user_quotas_enforced": false,
         "path": "/sample_file_system",
         "remaining_grace_period": -1,
         "size_used": 0,
-        "soft_limit(GB)": "50.0",
+        "soft_limit_GB": "50.0",
         "state": "Ok"
     }
 '''
