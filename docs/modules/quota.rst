@@ -293,11 +293,11 @@ quota_details (When Quota exists., complex, {'description': 'Tree quota created 
 
 
 
-  hard_limit(cap_unit) (, int, 4.0)
+  hard_limit_cap_unit (, int, 4.0)
     Value of the Hard Limit imposed on the quota.
 
 
-  soft_limit(cap_unit) (, int, 2.0)
+  soft_limit_cap_unit (, int, 2.0)
     Value of the Soft Limit imposed on the quota.
 
 
@@ -337,7 +337,7 @@ quota_details (When Quota exists., complex, {'description': 'Tree quota created 
       Description of Tree Quota for user quota.
 
 
-    hard_limit(cap_unit) (, int, 2.0)
+    hard_limit_cap_unit (, int, 2.0)
       Value of the Hard Limit imposed on the quota.
 
 
