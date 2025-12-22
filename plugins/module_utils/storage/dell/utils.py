@@ -31,6 +31,7 @@ import math
 from decimal import Decimal
 from uuid import UUID
 from datetime import datetime
+import os
 
 # Application type
 APPLICATION_TYPE = 'Ansible/3.4.0'
@@ -129,18 +130,85 @@ def name_or_id(val):
         return "NAME"
 
 
-def get_logger(module_name, log_file_name='ansible_powerstore.log', log_devel=logging.INFO):
+def get_logger(
+    module_name,
+    log_file_name='ansible_powerstore.log',
+    log_devel=logging.INFO,
+    *,
+    enable_file_logging=False,
+    enable_console_logging=False,
+    max_bytes=5 * 1024 * 1024,
+    backup_count=5,
+    env_toggle='ANSIBLE_POWERSTORE_ENABLE_LOG',  # truthy ("1"/"true"/"yes") enables file logging
+):
+    """
+    Return a configured logger.
+
+    When enable_file_logging=False (default), no file is created.
+    Logging remains silent unless you pass enable_file_logging=True or set env_toggle.
+
+    Parameters
+    ----------
+    module_name : str
+        Logger name, typically __name__ from the calling module.
+    log_file_name : str
+        File path for rotating logs (used only if logging is enabled).
+    log_devel : int
+        Logging level (INFO by default).
+    enable_file_logging : bool
+        If True, attach a rotating file handler and create/write to log_file_name.
+    enable_console_logging : bool
+        If True, also attach a StreamHandler to stdout/stderr.
+    max_bytes : int
+        Max bytes per file before rotation.
+    backup_count : int
+        Number of rotated files to keep.
+    env_toggle : str
+        Environment variable name; truthy values ("1", "true", "yes") enable file logging.
+    """
     FORMAT = '%(asctime)-15s %(filename)s %(levelname)s : %(message)s'
-    max_bytes = 5 * 1024 * 1024
-    logging.basicConfig(filename=log_file_name, format=FORMAT)
-    LOG = logging.getLogger(module_name)
-    LOG.setLevel(log_devel)
-    handler = CustomRotatingFileHandler(log_file_name, maxBytes=max_bytes, backupCount=5)
-    formatter = logging.Formatter(FORMAT)
-    handler.setFormatter(formatter)
-    LOG.addHandler(handler)
-    LOG.propagate = False
-    return LOG
+    logger = logging.getLogger(module_name)
+    logger.setLevel(log_devel)
+
+    # Avoid duplicating handlers if this is called multiple times
+    if logger.handlers:
+        return logger
+
+    # Default: do NOT create any file; attach NullHandler to suppress "No handlers" warnings.
+    logger.addHandler(logging.NullHandler())
+    logger.propagate = False
+
+    # Optional env toggle
+    env_val = os.getenv(env_toggle, '').strip().lower()
+    env_enabled = env_val in ('1', 'true', 'yes')
+
+    if enable_file_logging or env_enabled:
+        try:
+            # Create directory if the log path includes one
+            log_dir = os.path.dirname(log_file_name)
+            if log_dir:
+                os.makedirs(log_dir, exist_ok=True)
+
+            handler = CustomRotatingFileHandler(
+                log_file_name,
+                maxBytes=max_bytes,
+                backupCount=backup_count
+            )
+            handler.setFormatter(logging.Formatter(FORMAT))
+            handler.setLevel(log_devel)
+            logger.addHandler(handler)
+        except Exception as exc:
+            # Fail-safe: do not crash if path is invalid or FS is read-only
+            # Still keep NullHandler so module runs without logging
+            logger.debug("File logging initialization failed: %s", exc)
+
+    if enable_console_logging:
+        ch = logging.StreamHandler()
+        ch.setFormatter(logging.Formatter(FORMAT))
+        ch.setLevel(log_devel)
+        logger.addHandler(ch)
+
+    return logger
 
 
 '''
