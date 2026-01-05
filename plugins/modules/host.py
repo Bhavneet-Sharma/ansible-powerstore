@@ -158,6 +158,7 @@ notes:
 - For mutual CHAP authentication, single CHAP credentials are mandatory.
 - Support of C(NVMe) type of initiators is for PowerStore 2.0 and beyond.
 - The I(host_connectivity) is supported only in PowerStore 3.0.0.0 and above.
+- Idempotency is not supported when updating the CHAP credentials of I(detailed_initiators).
 '''
 EXAMPLES = r'''
 - name: Create host with FC initiator
