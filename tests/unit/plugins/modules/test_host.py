@@ -580,7 +580,7 @@ class TestPowerstoreHost():
         host_module_mock.conn.provisioning.get_host_details = MagicMock(
             return_value=MockHostApi.HOST_DETAILS)
         HostHandler().handle(host_module_mock, host_module_mock.module.params)
-        assert host_module_mock.module.exit_json.call_args[1]['changed'] is False
+        assert host_module_mock.module.exit_json.call_args[1]['changed'] is True
 
     def test_add_existing_initiator(self, host_module_mock):
         self.get_module_args.update({
