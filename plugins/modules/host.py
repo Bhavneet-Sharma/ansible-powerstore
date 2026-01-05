@@ -636,10 +636,10 @@ class PowerStoreHost(object):
                 return modify_dict
 
             add_list_with_type = self._prepare_add_list_with_type(
-            add_list=add_list, detailed_initiators=detailed_initiators, is_add_operation=True)
+                add_list=add_list, detailed_initiators=detailed_initiators, is_add_operation=True)
 
             modify_list_with_type = self._prepare_add_list_with_type(
-            add_list=modify_list, detailed_initiators=detailed_initiators, is_add_operation=False)
+                add_list=modify_list, detailed_initiators=detailed_initiators, is_add_operation=False)
 
             if len(add_list_with_type) > 0:
                 modify_dict["add_initiators"] = add_list_with_type
