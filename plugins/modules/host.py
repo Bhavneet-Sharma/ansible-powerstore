@@ -158,6 +158,7 @@ notes:
 - For mutual CHAP authentication, single CHAP credentials are mandatory.
 - Support of C(NVMe) type of initiators is for PowerStore 2.0 and beyond.
 - The I(host_connectivity) is supported only in PowerStore 3.0.0.0 and above.
+- Idempotency is not supported when updating the CHAP credentials of I(detailed_initiators).
 '''
 EXAMPLES = r'''
 - name: Create host with FC initiator
@@ -556,7 +557,7 @@ class PowerStoreHost(object):
 
         return current_init
 
-    def _prepare_add_list_with_type(self, add_list, detailed_initiators):
+    def _prepare_add_list_with_type(self, add_list, detailed_initiators, is_add_operation):
         add_list_with_type = []
         for init in add_list:
             # when detailed_initiators param is used to add new initiators
@@ -569,7 +570,9 @@ class PowerStoreHost(object):
                             init=init,
                             current_init=current_initiator,
                             detailed_init=detailed_init)
-                        current_initiator['port_type'] = self._get_port_type(initiator=init)
+                        if is_add_operation:
+                            # add_initiators requires port_type whereas modify_initiators doesn't
+                            current_initiator['port_type'] = self._get_port_type(initiator=init)
                         add_list_with_type.append(current_initiator)
             # when initiators param is used to add new initiators
             else:
@@ -581,43 +584,69 @@ class PowerStoreHost(object):
         return add_list_with_type
 
     def add_host_initiators(self, host, modify_dict):
+        # get params
         initiators = self.module.params['initiators']
         detailed_initiators = self.module.params['detailed_initiators']
-        add_list = None
-        existing_inits = []
+
+        # determine existing initiators
+        existing_initiators = None
+        existing_initiator_port_names = []
         if 'host_initiators' in host:
-            current_initiators = host['host_initiators']
-            if current_initiators:
-                for initiator in current_initiators:
-                    existing_inits.append(initiator['port_name'])
-        if initiators \
-                and (set(initiators).issubset(set(existing_inits))):
-            LOG.info('Initiators are already present in host %s',
-                     host['name'])
+            existing_initiators = host['host_initiators']
+            if existing_initiators:
+                for initiator in existing_initiators:
+                    existing_initiator_port_names.append(initiator['port_name'])
 
-            return modify_dict
+        # if initiators, then populate modify_dict with add_initiators
+        if initiators:
+            if set(initiators).issubset(set(existing_initiator_port_names)):
+                LOG.info('Initiators are already present in host %s',
+                         host['name'])
+                return modify_dict
 
-        initiator_list = []
-        if detailed_initiators is not None:
-            initiator_list = [p_name['port_name'] for p_name in
-                              detailed_initiators]
+            add_list = self._get_add_initiators(existing_initiator_port_names, initiators)
+            add_list_with_type = self._prepare_add_list_with_type(
+                add_list=add_list, detailed_initiators=None, is_add_operation=True)
+            if len(add_list_with_type) > 0:
+                modify_dict["add_initiators"] = add_list_with_type
 
-        if detailed_initiators and \
-                (set(initiator_list).issubset(set(existing_inits))):
-            LOG.info('Initiators are already present in host %s',
-                     host['name'])
-            return modify_dict
-
+        # if detailed_initiators, then populate modify_dict with add_initiators and modify_initiators
         if detailed_initiators:
-            initiators = []
-            for initiator in detailed_initiators:
-                initiators.append(initiator['port_name'])
+            no_changes_count = 0
+            add_list = []
+            modify_list = []
 
-        add_list = self._get_add_initiators(existing_inits, initiators)
-        add_list_with_type = self._prepare_add_list_with_type(
-            add_list=add_list, detailed_initiators=detailed_initiators)
-        if len(add_list_with_type) > 0:
-            modify_dict["add_initiators"] = add_list_with_type
+            # identify which to add/modify/ignore
+            for initiator in detailed_initiators:
+                port_name = initiator['port_name']
+                if port_name not in set(existing_initiator_port_names):
+                    # add
+                    add_list.append(port_name)
+                else:
+                    if port_name.startswith('iqn'):
+                        # since existing_initiators don't contain chap_single_password, chap_mutual_password
+                        # we cannot match all chap params
+                        modify_list.append(port_name)
+                    else:
+                        # no chap credentials to match
+                        no_changes_count += 1
+
+            if no_changes_count == len(detailed_initiators):
+                LOG.info('Initiators are already present in host %s',
+                         host['name'])
+                return modify_dict
+
+            add_list_with_type = self._prepare_add_list_with_type(
+                add_list=add_list, detailed_initiators=detailed_initiators, is_add_operation=True)
+
+            modify_list_with_type = self._prepare_add_list_with_type(
+                add_list=modify_list, detailed_initiators=detailed_initiators, is_add_operation=False)
+
+            if len(add_list_with_type) > 0:
+                modify_dict["add_initiators"] = add_list_with_type
+            if len(modify_list_with_type) > 0:
+                modify_dict["modify_initiators"] = modify_list_with_type
+
         return modify_dict
 
     def remove_host_initiators(self, host, modify_dict):
@@ -657,7 +686,7 @@ class PowerStoreHost(object):
 
     def update_host(self, host, modify_dict):
         try:
-            param_list = ['name', 'host_connectivity', 'add_initiators', 'remove_initiators', 'description']
+            param_list = ['name', 'host_connectivity', 'add_initiators', 'modify_initiators', 'remove_initiators', 'description']
             for param in param_list:
                 if param not in modify_dict:
                     modify_dict[param] = None
@@ -667,6 +696,7 @@ class PowerStoreHost(object):
                     name=modify_dict['name'],
                     host_connectivity=modify_dict['host_connectivity'],
                     add_initiators=modify_dict['add_initiators'],
+                    modify_initiators=modify_dict['modify_initiators'],
                     remove_initiators=modify_dict['remove_initiators'],
                     description=modify_dict['description']
                 )

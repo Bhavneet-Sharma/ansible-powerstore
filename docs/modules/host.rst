@@ -198,6 +198,7 @@ Notes
    - Support of :literal:`NVMe` type of initiators is for PowerStore 2.0 and beyond.
    - The :emphasis:`host\_connectivity` is supported only in PowerStore 3.0.0.0 and above.
    - The modules present in this collection named as 'dellemc.powerstore' are built to support the Dell PowerStore storage platform.
+   - Idempotency is not supported when updating the CHAP credentials of :emphasis:`detailed\_initiators`.
 
 
 
